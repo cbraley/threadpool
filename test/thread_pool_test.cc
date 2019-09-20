@@ -4,17 +4,37 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-#include <thread>
 #include <unordered_set>
 
 #include "gtest/gtest.h"
 #include "src/thread_pool.h"
 
-// TODO(cbraley): These tests are pretty lame - I don't like using std::sleep
-// in tests or relying timing - this makes tests prone to flakniess. This is
-// good enough for now though...
-
 namespace cb {
+
+// Simple counting semaphore class.
+class Semaphore {
+ public:
+  Semaphore() : sema_count_(0) {}
+
+  void Notify() {
+    std::unique_lock<std::mutex> lock(mu_);
+    sema_count_++;
+    condvar_.notify_one();
+  }
+
+  void Wait() {
+    std::unique_lock<std::mutex> lock(mu_);
+    while (sema_count_ == 0) {
+      condvar_.wait(lock);
+    }
+    sema_count_--;
+  }
+
+ private:
+  std::mutex mu_;
+  std::condition_variable condvar_;
+  int sema_count_;
+};
 
 class ThreadPoolTest : public ::testing::Test {
  protected:
@@ -44,7 +64,7 @@ TEST_F(ThreadPoolTest, BasicSanity) {
 
 TEST_F(ThreadPoolTest, Wait) {
   constexpr int kNumTasks = 64;
-  std::mutex mu;
+  std::mutex mu;  // Guard counter.
   int counter = 0;
 
   std::unique_ptr<ThreadPool> pool = MakePool();
@@ -64,9 +84,7 @@ TEST_F(ThreadPoolTest, Wait) {
     EXPECT_LE(counter, kNumTasks);
     EXPECT_GE(counter, 0);
   }
-  std::cout << "Waiting on work to be done..." << std::endl;
   pool->Wait();
-  std::cout << "Done waiting on work." << std::endl;
   {
     std::lock_guard<std::mutex> lk(mu);
     EXPECT_EQ(counter, kNumTasks);
@@ -76,7 +94,7 @@ TEST_F(ThreadPoolTest, Wait) {
 
 TEST_F(ThreadPoolTest, WaitWithWorkAlreadyDone) {
   constexpr int kNumTasks = 64;
-  std::mutex mu;
+  std::mutex mu;  // Guard counter.
   int counter = 0;
   std::unique_ptr<ThreadPool> pool = MakePool();
   EXPECT_EQ(pool->OutstandingWorkSize(), 0);
@@ -86,10 +104,13 @@ TEST_F(ThreadPoolTest, WaitWithWorkAlreadyDone) {
       counter++;
     });
   }
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-  std::cout << "Waiting on work to be done..." << std::endl;
+
+  // Hackily wait until all threads are done.
+  while (counter < kNumTasks) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+
   pool->Wait();
-  std::cout << "Done waiting on work." << std::endl;
   {
     std::lock_guard<std::mutex> lk(mu);
     EXPECT_EQ(counter, kNumTasks);
@@ -115,9 +136,7 @@ TEST_F(ThreadPoolTest, NumUniqueWorkerIds) {
     for (int i = 0; i < kNumWorkers * 3; ++i) {
       pool->Schedule([&]() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-
         const std::thread::id tid = std::this_thread::get_id();
-
         std::lock_guard<std::mutex> lk(mu);
         tids_seen.insert(tid);
       });
@@ -126,5 +145,61 @@ TEST_F(ThreadPoolTest, NumUniqueWorkerIds) {
 
   EXPECT_LE(tids_seen.size(), kNumWorkers);
 }
+
+TEST_F(ThreadPoolTest, FuturesThatReturnVoid) {
+  Semaphore sema;
+
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  std::future<void> future =
+      pool->ScheduleAndGetFuture([&sema]() { sema.Wait(); });
+
+  EXPECT_NE(future.wait_for(std::chrono::seconds(1)),
+            std::future_status::ready);
+  sema.Notify();
+  future.wait();
+}
+
+int Sum(int x, int y) { return x + y; }
+
+TEST_F(ThreadPoolTest, FuturesThatReturnNonVoid) {
+  Semaphore sema;
+
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  std::future<int> future = pool->ScheduleAndGetFuture([&sema]() {
+    sema.Wait();
+    return Sum(1, 99);
+  });
+
+  EXPECT_NE(std::future_status::ready,
+            future.wait_for(std::chrono::seconds(5)));
+  sema.Notify();
+  future.wait();
+  EXPECT_EQ(future.get(), 100);
+}
+
+void PrintSum(int x, int y) {
+  std::cout << "The sum is " << x + y << std::endl;
+}
+
+TEST_F(ThreadPoolTest, VoidFuture) {
+  Semaphore sema;
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  std::future<void> future = pool->ScheduleAndGetFuture([&sema]() {
+    sema.Wait();
+    PrintSum(1, 99);
+  });
+
+  EXPECT_NE(std::future_status::ready,
+            future.wait_for(std::chrono::seconds(5)));
+  sema.Notify();
+  future.wait();
+}
+
+TEST_F(ThreadPoolTest, ForwardingArguments) {
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  std::future<int> sum_future = pool->ScheduleAndGetFuture(&Sum, 3, 1);
+  EXPECT_EQ(sum_future.get(), 4);
+}
+
 
 }  // namespace cb

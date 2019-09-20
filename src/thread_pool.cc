@@ -4,24 +4,9 @@
 
 namespace cb {
 
-namespace {
-
-// RAII helper class. `func` will be invoked upon destruction.
-class Cleanup {
-public:
-  Cleanup(std::function<void(void)> func) : func_(std::move(func)) {}
-  ~Cleanup() { func_(); }
-
-private:
-  std::function<void(void)> func_;
-};
-
-} // namespace
-
 // static
-int ThreadPool::GetDefaultThreadPoolSize() {
-  const int dflt = std::thread::hardware_concurrency();
-  assert(dflt >= 0);
+unsigned int ThreadPool::GetDefaultThreadPoolSize() {
+  const unsigned int dflt = std::thread::hardware_concurrency();
   if (dflt == 0) {
     return 16;
   } else {
@@ -38,9 +23,9 @@ ThreadPool::~ThreadPool() {
     std::lock_guard<std::mutex> scoped_lock(mu_);
     exit_ = true;
   }
-  condvar_.notify_all(); // Tell *all* workers we are ready.
+  condvar_.notify_all();  // Tell *all* workers we are ready.
 
-  for (std::thread &thread : workers_) {
+  for (std::thread& thread : workers_) {
     thread.join();
   }
 }
@@ -55,6 +40,7 @@ void ThreadPool::Wait() {
 ThreadPool::ThreadPool(int num_workers)
     : num_workers_(num_workers), exit_(false) {
   assert(num_workers_ > 0);
+  // TODO(cbraley): Handle thread construction exceptions.
   workers_.reserve(num_workers_);
   for (int i = 0; i < num_workers_; ++i) {
     workers_.emplace_back(&ThreadPool::ThreadLoop, this);
@@ -62,17 +48,13 @@ ThreadPool::ThreadPool(int num_workers)
 }
 
 void ThreadPool::Schedule(std::function<void(void)> func) {
-  {
-    std::lock_guard<std::mutex> scoped_lock(mu_);
-    work_.emplace(std::move(func));
-  }
-  condvar_.notify_one(); // Tell one worker we are ready.
+  ScheduleAndGetFuture(std::move(func));  // We ignore the returned std::future.
 }
 
 void ThreadPool::ThreadLoop() {
   // Wait until the ThreadPool sends us work.
   while (true) {
-    std::function<void(void)> work_func;
+    WorkItem work_item;
 
     int prev_work_size = -1;
     {
@@ -86,19 +68,20 @@ void ThreadPool::ThreadLoop() {
       }
 
       // Pop the work off of the queue - we are careful to execute the
-      // work_func() callback only after we have released the lock.
-      work_func = std::move(work_.front());
+      // work_item.func callback only after we have released the lock.
+      work_item = std::move(work_.front());
       prev_work_size = work_.size();
       work_.pop();
     }
 
     // We are careful to do the work without the lock held!
-    work_func(); // Do work.
+    // TODO(cbraley): Handle exceptions properly.
+    work_item.func();  // Do work.
 
     // Notify a condvar is all work is done.
     {
       std::unique_lock<std::mutex> lock(mu_);
-      if (work_.empty() && prev_work_size == 1) {
+      if (work_.empty()) {
         work_done_condvar_.notify_all();
       }
     }
@@ -112,4 +95,4 @@ int ThreadPool::OutstandingWorkSize() const {
 
 int ThreadPool::NumWorkers() const { return num_workers_; }
 
-} // namespace cb
+}  // namespace cb
