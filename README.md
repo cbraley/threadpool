@@ -3,12 +3,11 @@ Simple C++11 thread pool class with no external dependencies.
 
 ## Build instructions
 
-* Install (bazel)[https://bazel.build/]
-* Run: 
+* Install [bazel](https://bazel.build/)
+* Run unit tests on your machine if desired: 
 
 ```shell
-bazel build -c opt test:thread_pool_test
-./bazel-bin/test/threadpool_tests
+./scripts/build_and_run_unit_tests.sh
 ```
 
-* Write your own code that uses `threadpool.h`.
+* Write your own code that uses `src/thread_pool.h`.
