@@ -207,7 +207,7 @@ class ClassWithAMemberFunction {
   int AddX(int input) const { return x + input; }
 };
 
-// TODO(cbraley): This test won't pass unless we can use std::invoke from C++17. 
+// TODO(cbraley): This test won't pass unless we can use std::invoke from C++17.
 // Consider finding a workaround for C++11.
 #if __cplusplus >= 201703L
 TEST_F(ThreadPoolTest, InvokingMemberFunctions) {

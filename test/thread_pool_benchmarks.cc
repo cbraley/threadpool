@@ -30,7 +30,7 @@ static void BM_CpuTask(benchmark::State& state) {
     CpuTask();
   }
 }
-BENCHMARK(BM_CpuTask);  // Register the benchmark.
+BENCHMARK(BM_CpuTask);
 
 static void BM_LargeCapturedVariables(benchmark::State& state) {
   // Number of threads to use in thread pool.
@@ -50,7 +50,8 @@ static void BM_LargeCapturedVariables(benchmark::State& state) {
         const std::thread::id tid = std::this_thread::get_id();
         std::hash<std::thread::id> hasher;
         const int string_index = hasher(tid) % strings.size();
-        const bool result = strings[string_index].find("C") != std::string::npos;
+        const bool result =
+            strings[string_index].find("C") != std::string::npos;
         benchmark::DoNotOptimize(result);
       }));
     }
@@ -60,7 +61,6 @@ static void BM_LargeCapturedVariables(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_LargeCapturedVariables)->UseRealTime();
-
 
 static void BM_ThreadPoolUsage(benchmark::State& state) {
   const int num_threads = state.range(0);
@@ -94,8 +94,7 @@ static void BM_AsyncUsage(benchmark::State& state) {
   }
   state.SetItemsProcessed(state.iterations() * kNumTasks);
 }
-BENCHMARK(BM_AsyncUsage)
-  ->UseRealTime();
+BENCHMARK(BM_AsyncUsage)->UseRealTime();
 
 // Benchmark the overhead of waiting for a single a "no-op" function
 // executed via std::async.
@@ -118,7 +117,7 @@ static void BM_ThreadpoolOverhead(benchmark::State& state) {
 }
 BENCHMARK(BM_ThreadpoolOverhead)->UseRealTime();
 
-// TODO(cbraley): Add a benchmark that demonstrates the issues I am saw with
+// TODO(cbraley): Add a benchmark that demonstrates the issues I saw with
 // std::async(std::launch_async, ...) and thread-local storage. Each std::async
 // call generates a new thread, and all TLS variables and destructed whenever
 // a thread is destroyed. This generates a lot of overhead for applications like
