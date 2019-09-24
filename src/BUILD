@@ -3,6 +3,7 @@ package(default_visibility = [
 ])
 
 load("//config:variables.bzl", "COPTS")
+load("//config:variables.bzl", "COPTS_CPP_17")
 
 cc_library(
     name = "thread_pool",
@@ -13,5 +14,16 @@ cc_library(
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS,
+)
+
+cc_library(
+    name = "thread_pool_cpp_17",
+    hdrs = [
+        "thread_pool.h",
+        "macros.h",
+        ],
+    srcs = ["thread_pool.cc"],
+    deps = [],
+    copts = COPTS_CPP_17,
 )
 
