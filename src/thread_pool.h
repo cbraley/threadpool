@@ -18,6 +18,8 @@
 //
 // // TODO(cbraley): Add examples with std::future.
 
+#include "src/macros.h"
+
 #include <condition_variable>
 #include <functional>
 #include <future>
@@ -88,7 +90,7 @@ class ThreadPool {
   //   `func`'s results.
   template <typename FuncT, typename... ArgsT>
   auto ScheduleAndGetFuture(FuncT&& func, ArgsT&&... args)
-      -> std::future<decltype(func(std::forward<ArgsT>(args)...))>;
+      -> std::future<decltype(INVOKE_MACRO(func, ArgsT, args))>;
 
   // Wait for all outstanding work to be completed.
   void Wait();
@@ -105,7 +107,7 @@ class ThreadPool {
   // Number of worker threads - fixed at construction time.
   int num_workers_;
 
-  // The destructor sets `exit_` to true and then notifues all workers. `exit_`
+  // The destructor sets `exit_` to true and then notifies all workers. `exit_`
   // causes each thread to break out of their work loop.
   bool exit_;
 
@@ -132,17 +134,18 @@ class ThreadPool {
 namespace impl {
 
 // This helper class simply returns a std::function that executes:
-//   T x = func();
+//   ReturnT x = func();
 //   promise->set_value(x);
 // However, this is tricky in the case where T == void. The code above won't
-// compile if T == void, and neither will
+// compile if ReturnT == void, and neither will
 //   promise->set_value(func());
-// To workaround this, we have a template specialization for the case where
-// void is returned. If the "regular void" proposal is accepted, we could
-// simplify this:
+// To workaround this, we use a template specialization for the case where
+// ReturnT is void. If the "regular void" proposal is accepted, this could be
+// simpler:
 // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0146r1.html.
 
-// This `FuncWrapper` handles callables that return a non-void value.
+// The non-specialized `FuncWrapper` implementation handles callables that
+// return a non-void value.
 template <typename ReturnT>
 struct FuncWrapper {
   template <typename FuncT, typename... ArgsT>
@@ -154,24 +157,28 @@ struct FuncWrapper {
     // generalized lambda capture is available. Can we use std::bind instead to
     // make this more efficient and still use C++11?
     //
-    // The same TODO applies below as well.
     return [promise, func, args...]() mutable {
-      promise->set_value(func(std::forward<ArgsT>(args)...));
+      promise->set_value(INVOKE_MACRO(func, ArgsT, args));
     };
   }
 };
 
-// This `FuncWrapper` handles callables that return void.
+template <typename FuncT, typename... ArgsT>
+void InvokeVoidRet(FuncT&& func, std::shared_ptr<std::promise<void>> promise,
+                   ArgsT&&... args) {
+  INVOKE_MACRO(func, ArgsT, args);
+  promise->set_value();
+}
+
+// This `FuncWrapper` specialization handles callables that return void.
 template <>
 struct FuncWrapper<void> {
   template <typename FuncT, typename... ArgsT>
   std::function<void()> GetWrapped(FuncT&& func,
                                    std::shared_ptr<std::promise<void>> promise,
                                    ArgsT&&... args) {
-    return [promise, func, args...]() {
-      func(std::forward<ArgsT>(args)...);
-      promise->set_value();
-    };
+    return std::bind(&InvokeVoidRet<FuncT&, ArgsT...>, std::move(func),
+                     std::move(promise), std::forward<ArgsT>(args)...);
   }
 };
 
@@ -179,13 +186,11 @@ struct FuncWrapper<void> {
 
 template <typename FuncT, typename... ArgsT>
 auto ThreadPool::ScheduleAndGetFuture(FuncT&& func, ArgsT&&... args)
-    -> std::future<decltype(func(std::forward<ArgsT>(args)...))> {
-  using ReturnT = decltype(func(std::forward<ArgsT>(args)...));
+    -> std::future<decltype(INVOKE_MACRO(func, ArgsT, args))> {
+  using ReturnT = decltype(INVOKE_MACRO(func, ArgsT, args));
 
-  // We are only allocating this std::promise as a shared_ptr because a normal
-  // std::promise is non-copyable. See:
-  // https://stackoverflow.com/questions/28208948/how-to-store-non-copyable-stdfunction-into-a-container
-  // for more details.
+  // We are only allocating this std::promise in a shared_ptr because
+  // std::promise is non-copyable.
   std::shared_ptr<std::promise<ReturnT>> promise =
       std::make_shared<std::promise<ReturnT>>();
   std::future<ReturnT> ret_future = promise->get_future();
@@ -206,5 +211,7 @@ auto ThreadPool::ScheduleAndGetFuture(FuncT&& func, ArgsT&&... args)
 }
 
 }  // namespace cb
+
+#undef INVOKE_MACRO
 
 #endif  // SRC_THREAD_POOL_H_

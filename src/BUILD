@@ -6,7 +6,10 @@ load("//config:variables.bzl", "COPTS")
 
 cc_library(
     name = "thread_pool",
-    hdrs = ["thread_pool.h"],
+    hdrs = [
+        "thread_pool.h",
+        "macros.h",
+        ],
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS,

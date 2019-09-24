@@ -201,5 +201,23 @@ TEST_F(ThreadPoolTest, ForwardingArguments) {
   EXPECT_EQ(sum_future.get(), 4);
 }
 
+class ClassWithAMemberFunction {
+ public:
+  int x = 0;
+  int AddX(int input) const { return x + input; }
+};
+
+// TODO(cbraley): This test won't pass unless we can use std::invoke from C++17. 
+// Consider finding a workaround for C++11.
+#if __cplusplus >= 201703L
+TEST_F(ThreadPoolTest, InvokingMemberFunctions) {
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  ClassWithAMemberFunction object;
+  object.x = 12;
+  std::future<int> sum_future =
+      pool->ScheduleAndGetFuture(&ClassWithAMemberFunction::AddX, &object, 3);
+  EXPECT_EQ(sum_future.get(), 15);
+}
+#endif
 
 }  // namespace cb

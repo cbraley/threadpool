@@ -32,6 +32,36 @@ static void BM_CpuTask(benchmark::State& state) {
 }
 BENCHMARK(BM_CpuTask);  // Register the benchmark.
 
+static void BM_LargeCapturedVariables(benchmark::State& state) {
+  // Number of threads to use in thread pool.
+  cb::ThreadPool pool(cb::ThreadPool::GetDefaultThreadPoolSize());
+
+  // Make a large array of strings.
+  std::vector<std::string> strings;
+  const std::string kChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for (int i = 0; i < 1000; ++i) {
+    strings.emplace_back(500, kChars[i % kChars.size()]);
+  }
+
+  for (auto _ : state) {
+    std::vector<std::future<void>> results;
+    for (int i = 0; i < 100; ++i) {
+      results.emplace_back(pool.ScheduleAndGetFuture([strings]() {
+        const std::thread::id tid = std::this_thread::get_id();
+        std::hash<std::thread::id> hasher;
+        const int string_index = hasher(tid) % strings.size();
+        const bool result = strings[string_index].find("C") != std::string::npos;
+        benchmark::DoNotOptimize(result);
+      }));
+    }
+    for (auto& f : results) {
+      f.wait();
+    }
+  }
+}
+BENCHMARK(BM_LargeCapturedVariables)->UseRealTime();
+
+
 static void BM_ThreadPoolUsage(benchmark::State& state) {
   const int num_threads = state.range(0);
   cb::ThreadPool pool(num_threads);
@@ -90,8 +120,8 @@ BENCHMARK(BM_ThreadpoolOverhead)->UseRealTime();
 
 // TODO(cbraley): Add a benchmark that demonstrates the issues I am saw with
 // std::async(std::launch_async, ...) and thread-local storage. Each std::async
-// call generates a new thread, and all TLS variables and destructed whenever 
-// a thread is destroyed. This generates a lot of overhead for applications like 
+// call generates a new thread, and all TLS variables and destructed whenever
+// a thread is destroyed. This generates a lot of overhead for applications like
 // multi-threaded logging, where you may want to use TLS to store a thread-local
 // log buffer that is periodically merged with the main global log.
 
