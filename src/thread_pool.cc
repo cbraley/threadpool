@@ -69,8 +69,8 @@ void ThreadPool::ThreadLoop() {
 
       // Pop the work off of the queue - we are careful to execute the
       // work_item.func callback only after we have released the lock.
-      work_item = std::move(work_.front());
       prev_work_size = work_.size();
+      work_item = std::move(work_.front());
       work_.pop();
     }
 
@@ -81,7 +81,7 @@ void ThreadPool::ThreadLoop() {
     // Notify a condvar is all work is done.
     {
       std::unique_lock<std::mutex> lock(mu_);
-      if (work_.empty()) {
+      if (work_.empty() && prev_work_size == 1) {
         work_done_condvar_.notify_all();
       }
     }
