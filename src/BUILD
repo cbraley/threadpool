@@ -3,7 +3,6 @@ package(default_visibility = [
 ])
 
 load("//config:variables.bzl", "COPTS")
-load("//config:variables.bzl", "COPTS_CPP_17")
 
 cc_library(
     name = "thread_pool",

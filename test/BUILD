@@ -1,4 +1,4 @@
-load("//config:variables.bzl", "COPTS", "COPTS_CPP_17", "COPTS_CPP_11")
+load("//config:variables.bzl", "COPTS")
 
 cc_binary(
     name = "thread_pool_test",
