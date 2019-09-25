@@ -93,3 +93,7 @@ built with any C++ version >= C++11.
 1. Remove `ThreadPool::Schedule` and use `ThreadPool::ScheduleAndGetFuture`
    everywhere. Users can just ignore the returned `std::future` if needed.
 
+1. See if work stealing improves performance for short tasks.
+
+1. 
+
