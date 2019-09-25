@@ -1,11 +1,7 @@
-COPTS = [
-    "-std=c++11",
-    #  https://quuxplusone.github.io/blog/2018/12/06/dont-use-weverything/
-    "-W", "-Wall", "-Wextra", "-pedantic", "-pedantic-errors", "-Wshadow"
-]
+# TODO(cbraley): Refactor!
 
-COPTS_CPP_17 = [
-    "-std=c++17",
     #  https://quuxplusone.github.io/blog/2018/12/06/dont-use-weverything/
-    "-W", "-Wall", "-Wextra", "-pedantic", "-pedantic-errors", "-Wshadow"
-]
+COPTS = ["-W", "-Wall", "-Wextra", "-pedantic", "-pedantic-errors", "-Wshadow"]
+
+COPTS_CPP_11 = COPTS + ["-std=c++11"]
+COPTS_CPP_17 = COPTS + ["-std=c++11"]

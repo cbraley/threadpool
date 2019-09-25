@@ -14,6 +14,7 @@ cc_library(
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS,
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
