@@ -6,8 +6,11 @@ namespace cb {
 
 // static
 unsigned int ThreadPool::GetDefaultThreadPoolSize() {
+  // TODO(cbraley): Apparently this is broken in some older stdlib 
+  // implementations?
   const unsigned int dflt = std::thread::hardware_concurrency();
   if (dflt == 0) {
+    // TODO(cbraley): Return some error code instead.
     return 16;
   } else {
     return dflt;

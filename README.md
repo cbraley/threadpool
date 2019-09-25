@@ -2,7 +2,7 @@
 Simple C++ thread pool class with no external dependencies. This class can be 
 built with any C++ version >= C++11. This thread pool is implemented using a 
 single work queue, and a fixed size pool of worker threads. Work 
-items(functions) are processed in a FIFO order.
+items(functions) are processed in a FIFO order. 
 
 ## Why is this useful? Why not use [`std::async`](https://en.cppreference.com/w/cpp/thread/async)?
 Before writing this code, I tried using `std::async`. However, I ran into the
@@ -10,30 +10,30 @@ following problems:
 1. `std::async(std::launch::async, ...)` launches a new thread for every 
     invocation. On Mac and Linux, no thread pool is used so you have to 
     pay the price of thread creation (about 0.5ms on my laptop) for each 
-    new call.
+    call.
 1. If you use `std::async` you must have to carefully manage the number of 
-   in-flight `std::futures` to achieve peak performance.
-1. Any `thread_local` variables must also be destroyed each time a thread is 
-   shutdown. This is inefficient, since `std::async` launches a new thread
-   per call. A thread pool, however, only pays this destruction cost once when
-   the pool is destroyed.
+   in-flight threads to achieve peak performance.
 
 ## Good Workloads
-This simple design works well for embarrassingly parallel workloads that don't 
-block for long periods of time. Many graphics, image processing, and compute 
-vision applications meet this requirement. In this case, you want to set the 
-thread pool size to `ThreadPool::GetDefaultThreadPoolSize()` which typically 
-returns the number of logical cores your machine has.
+This simple thread pool design works well for embarrassingly parallel workloads 
+that don't block for long periods of time. Many graphics, image processing, and 
+computer vision applications fit this criteria. In this case, you want to set 
+the thread pool size to `ThreadPool::GetDefaultThreadPoolSize()` which returns 
+the number of logical cores your machine has.
 
 ## Bad Workloads
 Workloads that block for long durations(disk IO, holding locks for a long time, 
 etc.) won't perform well with this thread pool design, especially if you set 
-your thread pool size to the number of logical cores. Very short tasks (a few ms)
-also aren't a good fit. As a workaround, you can simply set the number of 
-threads to a very large number (N * number of logical cores). However, this 
-solution is still suboptimal. A better approach is to use a thread pool that 
-implements work stealing. This is because the blocked function will occupy one 
-of the threads in the pool, and we    
+your thread pool size to the number of logical cores. As a workaround, you can 
+set the number of threads to a very large number (N * number of logical cores). 
+However, this solution is suboptimal. A better approach is to use a thread pool 
+that implements work stealing. This is because the blocked function will occupy 
+one of the threads in the pool, even while it isn't doing useful work.
+
+Very short tasks (a few ms) also aren't a good fit for this thread pool 
+implementation. This is because we incur some overhead synchronizing access to 
+the single work queue. I recommend batching the work until each task takes at 
+least a few tens of milliseconds,
 
 ## Build instructions
 
@@ -50,9 +50,6 @@ of the threads in the pool, and we
   `src:thread_pool`.
 
 ## Outstanding Issues
-
-1. TODO: Writeup info on the issues with `std::async`, and why one might want to
-   use this repo instead.
 
 1. Writeup benchmark info.
 
