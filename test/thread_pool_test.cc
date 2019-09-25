@@ -196,6 +196,8 @@ TEST_F(ThreadPoolTest, VoidFuture) {
 }
 
 TEST_F(ThreadPoolTest, ForwardingArguments) {
+  std::cout << ThreadPool::GetDefaultThreadPoolSize() << std::endl;
+  exit(1);
   std::unique_ptr<ThreadPool> pool = MakePool();
   std::future<int> sum_future = pool->ScheduleAndGetFuture(&Sum, 3, 1);
   EXPECT_EQ(sum_future.get(), 4);

@@ -117,13 +117,6 @@ static void BM_ThreadpoolOverhead(benchmark::State& state) {
 }
 BENCHMARK(BM_ThreadpoolOverhead)->UseRealTime();
 
-// TODO(cbraley): Add a benchmark that demonstrates the issues I saw with
-// std::async(std::launch_async, ...) and thread-local storage. Each std::async
-// call generates a new thread, and all TLS variables and destructed whenever
-// a thread is destroyed. This generates a lot of overhead for applications like
-// multi-threaded logging, where you may want to use TLS to store a thread-local
-// log buffer that is periodically merged with the main global log.
-
 int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
