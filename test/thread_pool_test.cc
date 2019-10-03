@@ -196,8 +196,7 @@ TEST_F(ThreadPoolTest, VoidFuture) {
 }
 
 TEST_F(ThreadPoolTest, ForwardingArguments) {
-  std::cout << ThreadPool::GetDefaultThreadPoolSize() << std::endl;
-  exit(1);
+  std::cout << ThreadPool::GetNumLogicalCores() << std::endl;
   std::unique_ptr<ThreadPool> pool = MakePool();
   std::future<int> sum_future = pool->ScheduleAndGetFuture(&Sum, 3, 1);
   EXPECT_EQ(sum_future.get(), 4);
@@ -207,7 +206,32 @@ class ClassWithAMemberFunction {
  public:
   int x = 0;
   int AddX(int input) const { return x + input; }
+  void AddToValue(int input) {
+    std::lock_guard<std::mutex> lock(mu_);
+    value_ += input;
+  }
+  int GetValue() {
+    std::lock_guard<std::mutex> lock(mu_);
+    return value_;
+  }
+
+ private:
+  std::mutex mu_;
+  int value_ = 0;
 };
+
+TEST_F(ThreadPoolTest, WorkDoneCallback) {
+  std::mutex mutex;
+  std::unique_ptr<ThreadPool> pool = MakePool();
+  pool->SetWorkDoneCallback([&mutex](int work_items_left) {
+    std::unique_lock<std::mutex> lock(mutex);
+    std::cout << work_items_left << " items left!" << std::endl;
+  });
+  for (int j = 0; j < 10; ++j) {
+    pool->ScheduleAndGetFuture(
+        []() { std::this_thread::sleep_for(std::chrono::seconds(1)); });
+  }
+}
 
 // TODO(cbraley): This test won't pass unless we can use std::invoke from C++17.
 // Consider finding a workaround for C++11.
@@ -219,6 +243,17 @@ TEST_F(ThreadPoolTest, InvokingMemberFunctions) {
   std::future<int> sum_future =
       pool->ScheduleAndGetFuture(&ClassWithAMemberFunction::AddX, &object, 3);
   EXPECT_EQ(sum_future.get(), 15);
+
+  // TODO(cbraley): This does not work for members that reutrn void!!!
+  /*
+  std::future<void> accum_future = pool->ScheduleAndGetFuture(
+      &ClassWithAMemberFunction::AddToValue, &object, 44);
+  std::future<void> accum_future_2 = pool->ScheduleAndGetFuture(
+      &ClassWithAMemberFunction::AddToValue, &object, -2);
+  accum_future.get();
+  accum_future_2.get();
+  EXPECT_EQ(object.GetValue(), 42);
+  */
 }
 #endif
 

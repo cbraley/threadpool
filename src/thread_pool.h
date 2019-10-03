@@ -38,11 +38,10 @@ class ThreadPool {
   // Default construction is disallowed.
   ThreadPool() = delete;
 
-  // Get the default thread pool size. This is implemented using
+  // Get the number of logical cores on the CPU. This is implemented using
   // std::thread::hardware_concurrency().
   // https://en.cppreference.com/w/cpp/thread/thread/hardware_concurrency
-  // On my machine this returns the number of logical cores.
-  static unsigned int GetDefaultThreadPoolSize();
+  static unsigned int GetNumLogicalCores();
 
   // The `ThreadPool` destructor blocks until all outstanding work is complete.
   ~ThreadPool();
@@ -101,6 +100,8 @@ class ThreadPool {
   // Return the number of threads in the pool.
   int NumWorkers() const;
 
+  void SetWorkDoneCallback(std::function<void(int)> func);
+
  private:
   void ThreadLoop();
 
@@ -129,6 +130,10 @@ class ThreadPool {
   // Condition variable used to notify that all work is complete - the work
   // queue has "run dry".
   std::condition_variable work_done_condvar_;
+  
+  // Whenever a work item is complete, we call this callback. If this is empty,
+  // nothing is done.
+  std::function<void(int)> work_done_callback_;
 };
 
 namespace impl {

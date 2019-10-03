@@ -5,8 +5,8 @@
 namespace cb {
 
 // static
-unsigned int ThreadPool::GetDefaultThreadPoolSize() {
-  // TODO(cbraley): Apparently this is broken in some older stdlib 
+unsigned int ThreadPool::GetNumLogicalCores() {
+  // TODO(cbraley): Apparently this is broken in some older stdlib
   // implementations?
   const unsigned int dflt = std::thread::hardware_concurrency();
   if (dflt == 0) {
@@ -81,6 +81,10 @@ void ThreadPool::ThreadLoop() {
     // TODO(cbraley): Handle exceptions properly.
     work_item.func();  // Do work.
 
+    if (work_done_callback_) {
+      work_done_callback_(prev_work_size - 1);
+    }
+
     // Notify a condvar is all work is done.
     {
       std::unique_lock<std::mutex> lock(mu_);
@@ -97,5 +101,9 @@ int ThreadPool::OutstandingWorkSize() const {
 }
 
 int ThreadPool::NumWorkers() const { return num_workers_; }
+
+void ThreadPool::SetWorkDoneCallback(std::function<void(int)> func) {
+  work_done_callback_ = std::move(func);
+}
 
 }  // namespace cb
