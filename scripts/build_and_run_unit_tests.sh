@@ -23,7 +23,7 @@ fi
 set -x
 
 # Build unit tests.
-bazel build -c opt --cxxopt="-std=${CPP_VERSION}" test/...
+bazel build -c opt --cxxopt="-std=${CPP_VERSION}" test:thread_pool_test
 
 # Run unit tests.
 ./bazel-bin/test/thread_pool_test

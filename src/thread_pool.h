@@ -130,7 +130,7 @@ class ThreadPool {
   // Condition variable used to notify that all work is complete - the work
   // queue has "run dry".
   std::condition_variable work_done_condvar_;
-  
+
   // Whenever a work item is complete, we call this callback. If this is empty,
   // nothing is done.
   std::function<void(int)> work_done_callback_;
@@ -161,7 +161,6 @@ struct FuncWrapper {
     // efficient to move-capture everything, but we can't do this until C++14
     // generalized lambda capture is available. Can we use std::bind instead to
     // make this more efficient and still use C++11?
-    //
     return [promise, func, args...]() mutable {
       promise->set_value(INVOKE_MACRO(func, ArgsT, args));
     };
@@ -182,8 +181,10 @@ struct FuncWrapper<void> {
   std::function<void()> GetWrapped(FuncT&& func,
                                    std::shared_ptr<std::promise<void>> promise,
                                    ArgsT&&... args) {
-    return std::bind(&InvokeVoidRet<FuncT&, ArgsT...>, std::move(func),
-                     std::move(promise), std::forward<ArgsT>(args)...);
+    return [promise, func, args...]() mutable {
+      INVOKE_MACRO(func, ArgsT, args);
+      promise->set_value();
+    };
   }
 };
 

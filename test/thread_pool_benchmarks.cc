@@ -34,7 +34,7 @@ BENCHMARK(BM_CpuTask);
 
 static void BM_LargeCapturedVariables(benchmark::State& state) {
   // Number of threads to use in thread pool.
-  cb::ThreadPool pool(cb::ThreadPool::GetDefaultThreadPoolSize());
+  cb::ThreadPool pool(cb::ThreadPool::GetNumLogicalCores());
 
   // Make a large array of strings.
   std::vector<std::string> strings;

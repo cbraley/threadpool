@@ -244,8 +244,6 @@ TEST_F(ThreadPoolTest, InvokingMemberFunctions) {
       pool->ScheduleAndGetFuture(&ClassWithAMemberFunction::AddX, &object, 3);
   EXPECT_EQ(sum_future.get(), 15);
 
-  // TODO(cbraley): This does not work for members that reutrn void!!!
-  /*
   std::future<void> accum_future = pool->ScheduleAndGetFuture(
       &ClassWithAMemberFunction::AddToValue, &object, 44);
   std::future<void> accum_future_2 = pool->ScheduleAndGetFuture(
@@ -253,7 +251,6 @@ TEST_F(ThreadPoolTest, InvokingMemberFunctions) {
   accum_future.get();
   accum_future_2.get();
   EXPECT_EQ(object.GetValue(), 42);
-  */
 }
 #endif
 
