@@ -218,6 +218,4 @@ auto ThreadPool::ScheduleAndGetFuture(FuncT&& func, ArgsT&&... args)
 
 }  // namespace cb
 
-#undef INVOKE_MACRO
-
 #endif  // SRC_THREAD_POOL_H_
