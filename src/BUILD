@@ -9,7 +9,7 @@ cc_library(
     hdrs = [
         "thread_pool.h",
         "macros.h",
-        ],
+    ],
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS,
@@ -21,7 +21,7 @@ cc_library(
     hdrs = [
         "thread_pool.h",
         "macros.h",
-        ],
+    ],
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS_CPP_11,
@@ -33,7 +33,7 @@ cc_library(
     hdrs = [
         "thread_pool.h",
         "macros.h",
-        ],
+    ],
     srcs = ["thread_pool.cc"],
     deps = [],
     copts = COPTS_CPP_17,
