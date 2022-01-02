@@ -14,6 +14,10 @@ following problems:
 1. If you use `std::async` you must have to carefully manage the number of 
    in-flight threads to achieve peak performance.
 
+## License
+
+This project is licensed under the terms of the MIT license.
+
 ## Good Workloads
 This simple thread pool design works well for embarrassingly parallel workloads 
 that don't block for long periods of time. Many graphics, image processing, and 
